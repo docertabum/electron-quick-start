@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <meta charset="utf-8"/>
+    <title></title>
+    <script type="text/javascript" src="../jquery-3.4.1.min.js"></script>
+</head>
+
+<body>
+<script type="text/javascript">
+    $(function () {
+        alert("please check the console");
+
+        const dbName = "kosiceDB";
+        const tableName = "attendees";
+
+        async function executeAsync() {
+            var dbHandle;
+            try {
+                await deleteDbAsync(dbName);
+                dbHandle = await openDbAsync(dbName);
+                dbHandle = await createDbStructureAsync(dbHandle);
+                dbHandle = await addDbEntryAsync(dbHandle);
+                dbHandle = await readDbDataAsync(dbHandle);
+            } catch (ex) {
+                alert(ex);
+            }
+        }
+
+        executeAsync();
+
+        /*try {
+            var deleteRequest = indexedDB.deleteDatabase(dbName); // delete old db
+
+            deleteRequest.onsuccess = function (event) {
+                console.log('DB successfully deleted');
+
+                // Reference to the database to use, more than one DB can exist (e.g. 1 for each application)
+                var openRequest = indexedDB.open(dbName, 1); // increase version number for each DB structure change !!!
+
+                openRequest.onupgradeneeded = function (event) {
+                    console.log('DB needs upgrade');
+                    createDbStructure(event.target.result, function () {
+                        readDbData(event.target.result);
+                    });
+                };
+
+                openRequest.onsuccess = function (event) {
+                    console.log('DB successfully opened');
+                };
+
+                openRequest.onerror = function (event) {
+                    alert("Error " + event.target.errorCode + " occurred while opening the DB");
+                };
+            }
+
+            deleteRequest.onerror = function (event) {
+                console.log(event.target.error);
+            }
+        }
+        catch (ex) {
+            alert(ex);
+        }*/
+
+        function openDbAsync(dbName) {
+            const openDbPromise = new Promise(function (resolve, reject) {
+
+                // Reference to the database to use, more than one DB can exist (e.g. 1 for each application)
+                const openRequest = indexedDB.open(dbName, 1); // increase version number for each DB structure change !!!
+
+                openRequest.onupgradeneeded = function (event) {
+                    console.log('DB needs upgrade');
+                    resolve(event.target.result);
+                };
+
+                openRequest.onsuccess = function (event) {
+                    console.log('DB successfully opened');
+                };
+
+                openRequest.onerror = function (event) {
+                    alert("Error " + event.target.errorCode + " occurred while opening the DB");
+                };
+            });
+
+            return openDbPromise;
+        }
+
+        function deleteDbAsync(dbName) {
+            const deleteDbPromise = new Promise(function (resolve, reject) {
+                const deleteRequest = indexedDB.deleteDatabase(dbName); // delete old db
+
+                deleteRequest.onsuccess = function (event) {
+                    console.log('DB successfully deleted');
+                    resolve(event.target.result);
+                };
+
+                deleteRequest.onerror = function (event) {
+                    console.log(event.target.error);
+                    reject(event.target.error);
+                }
+            });
+            return deleteDbPromise;
+        }
+
+        function readDbDataAsync(dbHandle) {
+            const readDbDataPromise = new Promise(function (resolve, reject) {
+                console.log('getting item with the ID = 1 from the table ' + tableName + ' ...');
+
+                const getRequest = dbHandle.transaction(tableName).objectStore(tableName).get("1");
+
+                getRequest.onsuccess = function (event) {
+                    console.log(JSON.stringify(event.target.result));
+                    resolve(dbHandle);
+                };
+
+                getRequest.onerror = function (event) {
+                    alert(event.target.error);
+                    reject(event.target.error);
+                }
+            });
+            return readDbDataPromise;
+        }
+
+        function createDbStructureAsync(dbHandle) {
+            const createDbStructurePromise = new Promise(function (resolve, reject) {
+                // create table
+                const objectStore = dbHandle.createObjectStore(tableName, {keyPath: "id"});
+
+                objectStore.transaction.oncomplete = function (event) {
+                    resolve(dbHandle);
+                }
+            });
+            return createDbStructurePromise;
+        }
+
+        function addDbEntryAsync(dbHandle) {
+            const addDbEntryPromise = new Promise(function (resolve, reject) {
+                const attendee = {
+                    id: "1",
+                    name: "Milan Slivka",
+                    password: "Pa$$w0rd"
+                };
+
+                // open the objectStore (table) in transaction
+                const attendeeObjectStore = dbHandle.transaction(tableName, "readwrite").objectStore(tableName);
+                // Store values in the newly created objectStore
+                const addRequest = attendeeObjectStore.add(attendee);
+
+                addRequest.onsuccess = function (event) {
+                    console.log("attendee successfully added!");
+                    resolve(dbHandle);
+                }
+            });
+            return addDbEntryPromise;
+        }
+
+        function createDbStructure(dbHandle, onSuccess) {
+
+            // create table
+            const objectStore = dbHandle.createObjectStore(tableName, {keyPath: "id"});
+
+            // Use transaction oncomplete to make sure the objectStore creation is
+            // finished before adding data into it
+            objectStore.transaction.oncomplete = function (event) {
+                const attendee = {
+                    id: "1",
+                    name: "Milan Slivka",
+                    password: "Pa$$w0rd"
+                };
+
+                // open the objectStore (table) in transaction
+                const attendeeObjectStore = dbHandle.transaction(tableName, "readwrite").objectStore(tableName);
+                // Store values in the newly created objectStore
+                const addRequest = attendeeObjectStore.add(attendee);
+
+                addRequest.onsuccess = function (event) {
+                    console.log("attendee successfully added!");
+                    onSuccess();
+                };
+                addRequest.onerror = function (event) {
+                    alert(event.target.error);
+                };
+            }
+        }
+    });
+</script>
+</body>
+
+</html>
